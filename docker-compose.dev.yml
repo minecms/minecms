@@ -1,0 +1,55 @@
+name: minecms-dev
+
+# Локальные сервисы для разработки.
+# Запуск: pnpm services:up
+# Остановка: pnpm services:down
+# Полный сброс с удалением volumes: pnpm services:reset
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: minecms-mysql
+    restart: unless-stopped
+    ports:
+      - '3306:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: minecms
+      MYSQL_DATABASE: minecms
+      MYSQL_USER: minecms
+      MYSQL_PASSWORD: minecms
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-pminecms']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: minecms-postgres
+    restart: unless-stopped
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: minecms
+      POSTGRES_PASSWORD: minecms
+      POSTGRES_DB: minecms
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U minecms -d minecms']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  mysql_data:
+    name: minecms-mysql-data
+  postgres_data:
+    name: minecms-postgres-data

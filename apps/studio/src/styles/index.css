@@ -1,0 +1,147 @@
+/*
+ * Единая точка стилей Studio.
+ *
+ * Подключает preset из `@minecms/ui` — он внутри объявляет:
+ *   - `@import "tailwindcss"` — runtime Tailwind v4
+ *   - `@theme inline` — маппинг tokens.css → CSS-переменные Tailwind v4
+ *   - переменные палитры (oklch, light/dark, prefers-color-scheme)
+ *
+ * Здесь разрешено только локальное расширение Studio: специфичные слои или
+ * глобальные правила, которые не переиспользуются в других пакетах.
+ */
+@import '@minecms/ui/styles.css';
+
+/* Корневой shell Studio — `<div class="flex h-svh overflow-hidden">`. Запрещаем
+ * скроллу утекать на html/body, иначе portal-узлы (Tooltip/Popover/Dialog)
+ * могут на мгновение «расширить» body и вызвать сдвиг всей композиции (шапки
+ * сайдбаров уезжают вверх) при наведении мыши. */
+@layer base {
+  html,
+  body {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+}
+
+/* Стили rich-text-редактора (TipTap). Базовое содержимое — внутри `.tiptap`. */
+@layer components {
+  .tiptap :first-child {
+    margin-top: 0;
+  }
+  .tiptap h1,
+  .tiptap h2,
+  .tiptap h3,
+  .tiptap h4 {
+    font-weight: 600;
+    line-height: 1.2;
+    margin-top: 1.25em;
+    margin-bottom: 0.5em;
+  }
+  .tiptap h1 {
+    font-size: 1.75rem;
+  }
+  .tiptap h2 {
+    font-size: 1.5rem;
+  }
+  .tiptap h3 {
+    font-size: 1.25rem;
+  }
+  .tiptap h4 {
+    font-size: 1.1rem;
+  }
+  .tiptap p {
+    margin: 0.5em 0;
+  }
+  .tiptap ul,
+  .tiptap ol {
+    margin: 0.5em 0;
+    padding-left: 1.5rem;
+  }
+  .tiptap ul {
+    list-style: disc;
+  }
+  .tiptap ol {
+    list-style: decimal;
+  }
+  .tiptap ul[data-type='taskList'] {
+    list-style: none;
+    padding-left: 0.25rem;
+  }
+  .tiptap ul[data-type='taskList'] li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  .tiptap ul[data-type='taskList'] li > label {
+    margin-top: 0.25rem;
+  }
+  .tiptap ul[data-type='taskList'] li > div {
+    flex: 1;
+  }
+  .tiptap blockquote {
+    border-left: 3px solid var(--color-border);
+    padding-left: 0.75rem;
+    color: var(--color-muted-foreground);
+    margin: 0.75em 0;
+  }
+  .tiptap code {
+    background: var(--color-muted);
+    padding: 0.1em 0.3em;
+    border-radius: 0.25rem;
+    font-size: 0.9em;
+  }
+  .tiptap pre {
+    background: var(--color-muted);
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    margin: 0.75em 0;
+  }
+  .tiptap pre code {
+    background: transparent;
+    padding: 0;
+  }
+  .tiptap a {
+    color: var(--color-primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .tiptap mark {
+    background: oklch(0.95 0.12 95);
+    color: inherit;
+    padding: 0 0.15em;
+    border-radius: 0.15rem;
+  }
+  .tiptap hr {
+    border: 0;
+    border-top: 1px solid var(--color-border);
+    margin: 1em 0;
+  }
+  .tiptap img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+  }
+  .tiptap table {
+    border-collapse: collapse;
+    margin: 0.75em 0;
+    overflow: hidden;
+    table-layout: fixed;
+    width: 100%;
+  }
+  .tiptap table td,
+  .tiptap table th {
+    border: 1px solid var(--color-border);
+    padding: 0.4rem 0.6rem;
+    position: relative;
+    vertical-align: top;
+  }
+  .tiptap table th {
+    background: var(--color-muted);
+    font-weight: 600;
+    text-align: left;
+  }
+  .tiptap .ProseMirror-focused {
+    outline: none;
+  }
+}

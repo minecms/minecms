@@ -1,0 +1,41 @@
+{
+  "name": "minecms",
+  "private": true,
+  "version": "0.0.0",
+  "description": "MineCMS — opensource headless CMS на TypeScript с архитектурой schemas-as-code",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "db:migrate:mysql": "pnpm --filter @minecms/server db:migrate:mysql",
+    "db:migrate:postgres": "pnpm --filter @minecms/server db:migrate:postgres",
+    "services:up": "docker compose -f docker-compose.dev.yml up -d",
+    "services:down": "docker compose -f docker-compose.dev.yml down",
+    "services:logs": "docker compose -f docker-compose.dev.yml logs -f",
+    "services:reset": "docker compose -f docker-compose.dev.yml down -v"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.14",
+    "@types/node": "^25.6.0",
+    "tsx": "^4.21.0",
+    "turbo": "^2.9.9",
+    "typescript": "^6.0.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@biomejs/biome",
+      "@node-rs/argon2",
+      "esbuild"
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+packages:
+  - apps/*
+  - packages/*
+  - ../playground/minecms
+  - ../playground/demo
+
+catalog:
+  '@types/node': ^25.6.0
+  '@types/react': ^19.2.14
+  '@types/react-dom': ^19.2.3
+  react: ^19.2.5
+  react-dom: ^19.2.5
+  tsup: ^8.5.1
+  vitest: ^4.1.5
+  zod: ^4.4.3

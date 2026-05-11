@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build artifacts
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Turbo
+.turbo/
+
+# Vite
+.vite/
+*.local
+
+# Caches
+.cache/
+.eslintcache
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Tests
+coverage/
+.nyc_output/
+*.lcov
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temp
+tmp/
+.tmp/
+.tmp-tests-*/
+
+# Docker volumes (на случай ручных bind-mount)
+data/
+
+# Drizzle временные артефакты
+drizzle/.snapshot.json
+
+# pnpm
+pnpm-debug.log*
