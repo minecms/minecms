@@ -1,6 +1,6 @@
 {
   "name": "@minecms/studio",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "description": "MineCMS Studio — админка на Vite 8 + React 19 + TanStack Router/Query/Form + tRPC. Динамический UI по schemas-as-code. Пакет содержит готовый production-бандл админки и helper для отдачи статики из @minecms/server.",
   "keywords": [
     "minecms",

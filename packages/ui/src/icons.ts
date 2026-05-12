@@ -1,4 +1,3 @@
-import * as Hugeicons from '@hugeicons/core-free-icons';
 import {
   AlertCircleIcon,
   ArrowDown01Icon,
@@ -135,11 +134,44 @@ export const Table = Table01Icon;
 
 /**
  * Возвращает иконку по имени (`Home01Icon`, `File01Icon` и т.д.).
- * Если имя не найдено, возвращает `undefined`.
+ *
+ * Полный namespace `@hugeicons/core-free-icons` весит ~5 МБ — он подгружается
+ * лениво при первом обращении и кешируется. Это даёт code-splitting: основной
+ * бандл Studio не тянет тысячи иконок, которые могут никогда не понадобиться.
+ *
+ * Если имя не найдено или модуль ещё не загрузился — возвращается `undefined`.
+ * UI fallback'ится на дефолтную иконку и догружает по мере необходимости.
  */
+let cachedNamespace: Record<string, unknown> | null = null;
+let pendingNamespace: Promise<Record<string, unknown>> | null = null;
+
 export function getIconByName(name: string | null | undefined): IconSvgElement | undefined {
   if (!name) return undefined;
-  const candidate = (Hugeicons as Record<string, unknown>)[name];
-  if (!Array.isArray(candidate)) return undefined;
-  return candidate as IconSvgElement;
+  if (cachedNamespace) {
+    const candidate = cachedNamespace[name];
+    return Array.isArray(candidate) ? (candidate as IconSvgElement) : undefined;
+  }
+  if (!pendingNamespace) {
+    pendingNamespace = import('@hugeicons/core-free-icons').then((mod) => {
+      cachedNamespace = mod as unknown as Record<string, unknown>;
+      return cachedNamespace;
+    });
+  }
+  return undefined;
+}
+
+/**
+ * Принудительный warm-up: вызывается в layout root'а Studio при idle, чтобы
+ * к моменту первого рендера схемы все иконки уже были в памяти. Возвращает
+ * Promise, ждать его не обязательно.
+ */
+export function preloadIconNamespace(): Promise<void> {
+  if (cachedNamespace) return Promise.resolve();
+  if (!pendingNamespace) {
+    pendingNamespace = import('@hugeicons/core-free-icons').then((mod) => {
+      cachedNamespace = mod as unknown as Record<string, unknown>;
+      return cachedNamespace;
+    });
+  }
+  return pendingNamespace.then(() => undefined);
 }

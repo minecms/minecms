@@ -1,11 +1,10 @@
-import { randomBytes } from 'node:crypto';
-import { cp, mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
-import { createInterface } from 'node:readline/promises';
-import { stdin as input, stdout as output } from 'node:process';
+import { randomBytes } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { cp, mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import * as p from '@clack/prompts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const templateDir = resolve(here, '..', 'template');
@@ -13,41 +12,65 @@ const templateDir = resolve(here, '..', 'template');
 interface CliOptions {
   name: string | null;
   database: 'postgres' | 'mysql' | null;
-  installDeps: boolean;
+  installDeps: boolean | null;
   yes: boolean;
 }
 
 async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2));
 
-  greet();
+  p.intro('  MineCMS · создание нового проекта');
 
   const projectName = opts.name ?? (await askProjectName(opts.yes));
+  if (p.isCancel(projectName)) {
+    p.cancel('Отменено.');
+    process.exit(0);
+  }
   if (!isValidName(projectName)) {
-    fail(`Имя проекта «${projectName}» не подходит. Используй только буквы, цифры, -, _, без пробелов.`);
+    p.cancel(`Имя «${projectName}» не подходит. Используй буквы, цифры, - и _.`);
+    process.exit(1);
   }
 
   const targetDir = resolve(process.cwd(), projectName);
   await ensureFreshDir(targetDir, opts.yes);
 
-  const database = opts.database ?? (await askDatabase(opts.yes));
+  const database =
+    opts.database ?? (opts.yes ? 'postgres' : ((await askDatabase()) as 'postgres' | 'mysql'));
+  if (p.isCancel(database)) {
+    p.cancel('Отменено.');
+    process.exit(0);
+  }
 
+  const installDeps =
+    opts.installDeps ?? (opts.yes ? true : ((await askInstall()) as boolean));
+  if (p.isCancel(installDeps)) {
+    p.cancel('Отменено.');
+    process.exit(0);
+  }
+
+  const scaffoldSpinner = p.spinner();
+  scaffoldSpinner.start('Создаю файлы проекта');
   await scaffold({ projectName, targetDir, database });
+  scaffoldSpinner.stop(`Файлы готовы → ${targetDir}`);
 
-  if (opts.installDeps) {
+  if (installDeps) {
     await runInstall(targetDir);
   }
 
-  printNextSteps(projectName, opts.installDeps);
+  printNextSteps(projectName, installDeps);
 }
 
 function parseArgs(args: string[]): CliOptions {
-  const opts: CliOptions = { name: null, database: null, installDeps: true, yes: false };
+  const opts: CliOptions = { name: null, database: null, installDeps: null, yes: false };
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
     if (!arg) continue;
     if (arg === '--no-install' || arg === '--skip-install') {
       opts.installDeps = false;
+      continue;
+    }
+    if (arg === '--install') {
+      opts.installDeps = true;
       continue;
     }
     if (arg === '-y' || arg === '--yes') {
@@ -73,16 +96,6 @@ function parseArgs(args: string[]): CliOptions {
   return opts;
 }
 
-function greet(): void {
-  const banner = [
-    '',
-    '  MineCMS — opensource headless CMS на TypeScript',
-    '  https://minecms.ru',
-    '',
-  ].join('\n');
-  process.stdout.write(banner);
-}
-
 function printHelp(): void {
   process.stdout.write(
     [
@@ -91,36 +104,46 @@ function printHelp(): void {
       '  pnpm create minecms [имя] [--postgres|--mysql] [--no-install] [-y]',
       '',
       'Опции:',
-      '  --postgres, --pg   Использовать PostgreSQL (по умолчанию)',
-      '  --mysql            Использовать MySQL',
+      '  --postgres, --pg   PostgreSQL (по умолчанию)',
+      '  --mysql            MySQL вместо PostgreSQL',
       '  --no-install       Не запускать установку зависимостей',
-      '  -y, --yes          Не задавать вопросы, использовать дефолты',
+      '  -y, --yes          Без вопросов, дефолты',
       '  -h, --help         Эта справка',
       '',
     ].join('\n'),
   );
 }
 
-async function askProjectName(yes: boolean): Promise<string> {
+async function askProjectName(yes: boolean): Promise<string | symbol> {
   if (yes) return 'my-minecms';
-  const rl = createInterface({ input, output });
-  try {
-    const answer = (await rl.question('  Имя проекта (папка): ')).trim();
-    return answer.length > 0 ? answer : 'my-minecms';
-  } finally {
-    rl.close();
-  }
+  return p.text({
+    message: 'Как назовём проект?',
+    placeholder: 'my-minecms',
+    defaultValue: 'my-minecms',
+    validate(value) {
+      const name = value.trim() || 'my-minecms';
+      if (!isValidName(name)) return 'Только буквы, цифры, - и _.';
+      return undefined;
+    },
+  });
 }
 
-async function askDatabase(yes: boolean): Promise<'postgres' | 'mysql'> {
-  if (yes) return 'postgres';
-  const rl = createInterface({ input, output });
-  try {
-    const answer = (await rl.question('  База данных [postgres/mysql] (postgres): ')).trim().toLowerCase();
-    return answer === 'mysql' || answer === 'm' ? 'mysql' : 'postgres';
-  } finally {
-    rl.close();
-  }
+async function askDatabase(): Promise<string | symbol> {
+  return p.select({
+    message: 'Какая база данных?',
+    options: [
+      { value: 'postgres', label: 'PostgreSQL 16', hint: 'рекомендуется' },
+      { value: 'mysql', label: 'MySQL 8' },
+    ],
+    initialValue: 'postgres',
+  });
+}
+
+async function askInstall(): Promise<boolean | symbol> {
+  return p.confirm({
+    message: 'Установить зависимости сейчас?',
+    initialValue: true,
+  });
 }
 
 function isValidName(name: string): boolean {
@@ -136,16 +159,16 @@ async function ensureFreshDir(dir: string, yes: boolean): Promise<void> {
   if (entries.length === 0) return;
 
   if (yes) {
-    fail(`Папка ${dir} не пуста.`);
+    p.cancel(`Папка ${dir} не пуста.`);
+    process.exit(1);
   }
-  const rl = createInterface({ input, output });
-  try {
-    const answer = (await rl.question(`  Папка ${dir} не пуста. Продолжить и затереть содержимое? [y/N] `)).trim().toLowerCase();
-    if (answer !== 'y' && answer !== 'yes') {
-      fail('Отменено.');
-    }
-  } finally {
-    rl.close();
+  const ok = await p.confirm({
+    message: `Папка ${dir} не пуста. Затереть содержимое?`,
+    initialValue: false,
+  });
+  if (p.isCancel(ok) || !ok) {
+    p.cancel('Отменено.');
+    process.exit(0);
   }
 }
 
@@ -155,7 +178,6 @@ async function scaffold(args: {
   database: 'postgres' | 'mysql';
 }): Promise<void> {
   const { projectName, targetDir, database } = args;
-  process.stdout.write(`\n  Создаю проект в ${targetDir}\n`);
 
   await cp(templateDir, targetDir, {
     recursive: true,
@@ -163,20 +185,14 @@ async function scaffold(args: {
     filter: (src) => !src.endsWith('/node_modules') && !src.endsWith('.DS_Store'),
   });
 
-  // Файлы вида `_gitignore`, `_env.example` нельзя положить в npm-пакет под
-  // настоящими именами (.gitignore блокирует публикацию, .env вырезается
-  // npmignore-эвристикой). После копирования переименовываем их обратно.
+  // _gitignore → .gitignore (npm не публикует .gitignore внутри пакетов).
   await renameIfExists(join(targetDir, '_gitignore'), join(targetDir, '.gitignore'));
-  await renameIfExists(join(targetDir, '_env.example'), join(targetDir, '.env.example'));
 
   const sessionSecret = randomBytes(32).toString('hex');
-  const installToken = randomBytes(16).toString('hex');
-
   const databaseUrl =
     database === 'mysql'
       ? 'mysql://minecms:minecms@localhost:3307/minecms'
       : 'postgres://minecms:minecms@localhost:5433/minecms';
-  const databaseDriver = database;
 
   await patchFile(join(targetDir, 'package.json'), (raw) =>
     raw.replace('"__NAME__"', JSON.stringify(projectName)),
@@ -185,13 +201,11 @@ async function scaffold(args: {
   await writeFile(
     join(targetDir, '.env'),
     [
-      `# Сгенерировано create-minecms`,
-      `# Не коммить этот файл — секреты внутри.`,
+      `# Сгенерировано create-minecms. Не коммить — секреты внутри.`,
       ``,
       `DATABASE_URL=${databaseUrl}`,
-      `DATABASE_DRIVER=${databaseDriver}`,
+      `DATABASE_DRIVER=${database}`,
       `SESSION_SECRET=${sessionSecret}`,
-      `INSTALL_TOKEN=${installToken}`,
       `HOST=0.0.0.0`,
       `PORT=3001`,
       `LOG_LEVEL=info`,
@@ -207,7 +221,7 @@ async function scaffold(args: {
     join(targetDir, '.env.example'),
     [
       `DATABASE_URL=${databaseUrl}`,
-      `DATABASE_DRIVER=${databaseDriver}`,
+      `DATABASE_DRIVER=${database}`,
       `SESSION_SECRET=replace-me-32-chars-minimum-replace-me`,
       `HOST=0.0.0.0`,
       `PORT=3001`,
@@ -228,7 +242,6 @@ async function scaffold(args: {
     );
   }
 
-  // README с проектным именем
   await patchFile(join(targetDir, 'README.md'), (raw) => raw.replaceAll('__NAME__', projectName));
 }
 
@@ -285,12 +298,20 @@ async function renameIfExists(from: string, to: string): Promise<void> {
 
 async function runInstall(cwd: string): Promise<void> {
   const pm = detectPackageManager();
-  process.stdout.write(`\n  Устанавливаю зависимости через ${pm}…\n\n`);
+  const spin = p.spinner();
+  spin.start(`Ставлю зависимости через ${pm}`);
   await new Promise<void>((res, rej) => {
-    const child = spawn(pm, ['install'], { cwd, stdio: 'inherit', shell: process.platform === 'win32' });
+    const child = spawn(pm, ['install'], {
+      cwd,
+      stdio: 'ignore',
+      shell: process.platform === 'win32',
+    });
     child.on('error', rej);
-    child.on('exit', (code) => (code === 0 ? res() : rej(new Error(`${pm} install завершился с кодом ${code}`))));
+    child.on('exit', (code) =>
+      code === 0 ? res() : rej(new Error(`${pm} install завершился с кодом ${code}`)),
+    );
   });
+  spin.stop(`Зависимости установлены через ${pm}`);
 }
 
 function detectPackageManager(): 'pnpm' | 'npm' | 'yarn' {
@@ -302,29 +323,17 @@ function detectPackageManager(): 'pnpm' | 'npm' | 'yarn' {
 }
 
 function printNextSteps(projectName: string, installed: boolean): void {
-  process.stdout.write(
-    [
-      '',
-      '  Готово.',
-      '',
-      '  Дальше:',
-      `    cd ${projectName}`,
-      ...(installed ? [] : ['    pnpm install']),
-      '    docker compose up -d   # поднять БД',
-      '    pnpm dev               # сервер + Studio на http://localhost:3001/admin',
-      '',
-      '  При первом старте сервер выведет install-token в логе — открой',
-      '  http://localhost:3001/admin/install и пройди визард.',
-      '',
-    ].join('\n'),
-  );
-}
-
-function fail(msg: string): never {
-  process.stderr.write(`\n  ✕ ${msg}\n\n`);
-  process.exit(1);
+  const lines = [
+    `cd ${projectName}`,
+    ...(installed ? [] : ['pnpm install']),
+    'docker compose up -d',
+    'pnpm dev',
+  ];
+  p.note(lines.join('\n'), 'Дальше');
+  p.outro('Studio будет на http://localhost:3001/admin — токен установки подставится автоматически.');
 }
 
 main().catch((err) => {
-  fail(err instanceof Error ? err.message : String(err));
+  p.cancel(err instanceof Error ? err.message : String(err));
+  process.exit(1);
 });

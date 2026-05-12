@@ -5,6 +5,8 @@ export default defineConfig({
   format: ['esm'],
   target: 'node20',
   bundle: true,
+  // @clack/prompts вшиваем в бандл, чтобы CLI оставался единым исполняемым файлом.
+  noExternal: [/.*/],
   splitting: false,
   sourcemap: false,
   clean: true,

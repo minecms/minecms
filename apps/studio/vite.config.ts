@@ -38,5 +38,33 @@ export default defineConfig({
     sourcemap: true,
     outDir: 'dist',
     emptyOutDir: true,
+    // Ручное разбиение на чанки, чтобы initial-bundle не был 6+ МБ.
+    // Vite 8 использует rolldown — формат `output.manualChunks` совместим
+    // с rollup-style контрактом.
+    rollupOptions: {
+      output: {
+        manualChunks(id: string): string | undefined {
+          if (!id.includes('node_modules')) return undefined;
+          // `@hugeicons/core-free-icons` намеренно отдаём rolldown'у на
+          // авто-чанкование: статические named imports попадут в общий
+          // chunk вместе с потребителем, а тяжёлый namespace из
+          // `getIconByName` уйдёт в отдельный async-chunk.
+          if (id.includes('/@hugeicons/')) return undefined;
+          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/'))
+            return 'react';
+          if (id.includes('/@tanstack/')) return 'tanstack';
+          if (id.includes('/@tiptap/') || id.includes('/prosemirror-')) return 'tiptap';
+          if (id.includes('/@radix-ui/')) return 'radix';
+          if (id.includes('/@trpc/')) return 'trpc';
+          if (id.includes('/lucide-react/')) return 'icons';
+          if (id.includes('/zod/')) return 'zod';
+          return 'vendor';
+        },
+      },
+    },
+    // Уровень предупреждения «слишком большой чанк» поднимаем до 6 МБ —
+    // barrel `@hugeicons/core-free-icons` сам по себе ~5 МБ и не tree-shake'ится;
+    // выпиливание hugeicons — отдельная фаза. Остальные чанки укладываются в ~160 кБ.
+    chunkSizeWarningLimit: 6000,
   },
 });

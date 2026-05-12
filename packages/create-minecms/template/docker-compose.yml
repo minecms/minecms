@@ -4,13 +4,13 @@ services:
   minio:
     image: minio/minio:latest
     restart: unless-stopped
-    command: server /data --console-address ":9090"
+    command: server /data --console-address ":9101"
     environment:
       MINIO_ROOT_USER: minecms
       MINIO_ROOT_PASSWORD: minecmsminecms
     ports:
-      - "9000:9000"
-      - "9090:9090"
+      - "9100:9000"
+      - "9101:9101"
     volumes:
       - minecms-files:/data
 

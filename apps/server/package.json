@@ -1,6 +1,6 @@
 {
   "name": "@minecms/server",
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0-alpha.4",
   "description": "MineCMS backend — Fastify v5 + tRPC v11 + Drizzle (MySQL/PostgreSQL) + signed-cookie сессии. Запускает headless API поверх схем, описанных через @minecms/core.",
   "keywords": [
     "minecms",

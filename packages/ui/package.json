@@ -1,6 +1,6 @@
 {
   "name": "@minecms/ui",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "description": "Дизайн-система MineCMS — токены (oklch), Tailwind v4 preset и React-примитивы для Studio.",
   "keywords": [
     "minecms",

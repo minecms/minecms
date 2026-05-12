@@ -12,7 +12,7 @@ import {
   Input,
 } from '@minecms/ui';
 import { ArrowRight, CheckCircle2, Database, Loader2 } from '@minecms/ui/icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { trpc } from '../../shared/api/client';
 
 const DEFAULT_URLS = {
@@ -46,8 +46,26 @@ export function DatabaseStep(props: DatabaseStepProps): React.JSX.Element {
   const [driver, setDriver] = useState<'mysql' | 'postgres'>(props.initial?.driver ?? 'mysql');
   const [url, setUrl] = useState<string>(props.initial?.url ?? DEFAULT_URLS.mysql);
   const [installToken, setInstallToken] = useState<string>(props.initial?.installToken ?? '');
+  const [autoFilled, setAutoFilled] = useState(false);
 
   const testDatabase = trpc.install.testDatabase.useMutation();
+
+  // Если Studio открыли с того же хоста, на котором крутится сервер — заберём
+  // одноразовый install-token из `data/install.token` через защищённый
+  // `install.peekToken` endpoint. Сервер вернёт токен только при loopback-запросе
+  // и состоянии pristine, поэтому это безопасно и снимает копи-пасту из stdout.
+  const peekToken = trpc.install.peekToken.useQuery(undefined, {
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    enabled: !props.initial?.installToken,
+  });
+  useEffect(() => {
+    const detected = peekToken.data?.token;
+    if (detected && !installToken) {
+      setInstallToken(detected);
+      setAutoFilled(true);
+    }
+  }, [peekToken.data, installToken]);
 
   const trimmedToken = installToken.trim().toLowerCase();
   const tokenValid = INSTALL_TOKEN_PATTERN.test(trimmedToken);
@@ -143,9 +161,9 @@ export function DatabaseStep(props: DatabaseStepProps): React.JSX.Element {
             required
           />
           <FieldDescription>
-            Сервер при первом старте печатает токен в stdout:{' '}
-            <code>MINECMS · первая установка</code>. Скопируй его сюда — после успешной установки
-            токен будет удалён автоматически.
+            {autoFilled
+              ? 'Подставлен автоматически — Studio открыта с того же хоста, что и сервер. После установки токен будет удалён.'
+              : 'Сервер при первом старте печатает токен в stdout (блок «MINECMS · первая установка»). Скопируй сюда — после успешной установки токен удалится автоматически.'}
           </FieldDescription>
         </Field>
       </FieldGroup>

@@ -3,10 +3,11 @@ import { z } from 'zod';
 import { hashPassword } from '../../auth/password';
 import { databaseDrivers } from '../../config';
 import { createDb, pingDatabase } from '../../db';
-import { consumeInstallToken, verifyInstallToken } from '../../install-token';
+import { consumeInstallToken, readInstallToken, verifyInstallToken } from '../../install-token';
 import { applyUserSchemas, databaseNameFromUrl } from '../../schemas';
 import { persistInstallationFile, swapDb } from '../../state';
 import { publicProcedure, router, TRPCError } from '../core';
+import type { TrpcContext } from '../context';
 
 const databaseInput = z.object({
   driver: z.enum(databaseDrivers),
@@ -48,6 +49,23 @@ function tokenFilePathFromConfig(installationFilePath: string): string {
 }
 
 /**
+ * Запрос пришёл с того же хоста (loopback)? Достаточно сверить remoteAddress,
+ * trustProxy в Fastify уже разворачивает `X-Forwarded-For`, но для
+ * `peekToken` мы намеренно не доверяем заголовкам — только реальный TCP-peer.
+ */
+function isLoopbackRequest(ctx: TrpcContext): boolean {
+  // socket.remoteAddress = «настоящий» IP клиента, не подделывается заголовками.
+  const raw =
+    ctx.req.socket?.remoteAddress ??
+    (ctx.req as { ip?: string }).ip ??
+    '';
+  if (!raw) return false;
+  // IPv6 mapped IPv4 (`::ffff:127.0.0.1`) тоже считаем loopback'ом.
+  const ip = raw.replace(/^::ffff:/, '');
+  return ip === '127.0.0.1' || ip === '::1' || ip === 'localhost';
+}
+
+/**
  * tRPC-роутер install: статус, проверка БД и финализация установки.
  * Все три процедуры остаются доступны и после установки — для read-only `status`,
  * чтобы Studio могла безопасно опросить сервер.
@@ -65,6 +83,23 @@ export const installRouter = router({
       state: ctx.state.installationState,
       driver: ctx.state.config.database?.driver ?? null,
     };
+  }),
+
+  /**
+   * Удобный helper для UI: возвращает install-token, если он ещё валиден,
+   * **только при запросе с loopback-адреса** (127.0.0.1 / ::1 / unix-socket).
+   * Это снимает с пользователя ручное копирование из stdout и одновременно
+   * не даёт никому из внешней сети «подсмотреть» токен.
+   *
+   * Если запрос не локальный, или сервер уже установлен, или файла нет —
+   * возвращается `null`. Никаких 401, потому что эта процедура — чисто
+   * convenience-канал, а не источник правды.
+   */
+  peekToken: publicProcedure.query(({ ctx }) => {
+    if (ctx.state.installationState !== 'pristine') return { token: null };
+    if (!isLoopbackRequest(ctx)) return { token: null };
+    const tokenFilePath = tokenFilePathFromConfig(ctx.state.config.installationFilePath);
+    return { token: readInstallToken(tokenFilePath) };
   }),
 
   /**
