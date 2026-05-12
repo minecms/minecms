@@ -1,0 +1,19 @@
+services:
+  __DB_SERVICE__
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9090"
+    environment:
+      MINIO_ROOT_USER: minecms
+      MINIO_ROOT_PASSWORD: minecmsminecms
+    ports:
+      - "9000:9000"
+      - "9090:9090"
+    volumes:
+      - minecms-files:/data
+
+volumes:
+  minecms-db:
+  minecms-files:

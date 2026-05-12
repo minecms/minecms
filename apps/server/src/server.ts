@@ -8,6 +8,7 @@ import { cookiesPlugin } from './plugins/cookies';
 import { corsPlugin } from './plugins/cors';
 import { mediaPlugin } from './plugins/media';
 import { restPlugin } from './plugins/rest';
+import { studioPlugin } from './plugins/studio';
 import { trpcPlugin } from './plugins/trpc';
 import {
   applyUserSchemas,
@@ -141,6 +142,7 @@ export async function createServer(options?: {
   await app.register(trpcPlugin, { state });
   await app.register(mediaPlugin, { state });
   await app.register(restPlugin, { state });
+  await app.register(studioPlugin);
 
   app.get('/health', async () => ({ ok: true, installationState: state.installationState }));
 

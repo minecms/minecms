@@ -1,0 +1,18 @@
+node_modules/
+.pnpm-store/
+
+dist/
+build/
+.next/
+*.tsbuildinfo
+
+.env
+.env.local
+
+# Локальное состояние установки (install-token)
+data/
+
+*.log
+.DS_Store
+.idea/
+.vscode/

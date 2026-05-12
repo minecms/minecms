@@ -1,0 +1,52 @@
+{
+  "name": "create-minecms",
+  "version": "0.1.0-alpha.2",
+  "description": "Создаёт новый проект MineCMS одной командой: pnpm create minecms my-cms. Скэффолдит конфиг, docker-compose и ставит зависимости.",
+  "keywords": [
+    "minecms",
+    "cms",
+    "create",
+    "scaffold",
+    "cli"
+  ],
+  "license": "Apache-2.0",
+  "homepage": "https://minecms.ru",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/minecms/minecms.git",
+    "directory": "minecms/packages/create-minecms"
+  },
+  "bugs": {
+    "url": "https://github.com/minecms/minecms/issues"
+  },
+  "author": "MineCMS Team <hello@minecms.ru>",
+  "type": "module",
+  "bin": {
+    "create-minecms": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "publishConfig": {
+    "access": "public",
+    "tag": "alpha"
+  },
+  "files": [
+    "dist",
+    "template",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsup": "catalog:"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
